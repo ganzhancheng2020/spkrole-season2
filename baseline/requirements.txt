@@ -1,0 +1,7 @@
+funasr>=1.3.2
+torch
+torchaudio
+modelscope
+openai
+python-dotenv
+requests

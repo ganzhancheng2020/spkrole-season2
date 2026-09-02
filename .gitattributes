@@ -1,0 +1,4 @@
+.matpilot export-ignore
+.matpilot/** export-ignore
+.matpilot-worktrees export-ignore
+.matpilot-worktrees/** export-ignore

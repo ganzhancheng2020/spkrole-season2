@@ -1,0 +1,22 @@
+# .env 已忽略
+.env
+.venv/
+__pycache__/
+*.pyc
+# 模型缓存与输出：默认全部忽略，但放行「一键复现所需」的产物（合计 33 MB）
+# 用 output/* 而非 output/ —— 后者会阻止 git 向下递归，导致 ! 例外失效
+output/*
+!output/diar_test_m3_7_0.70/
+!output/emb_test/
+!output/test_raw/
+!output/test_wa_m05b6/
+!output/test_v048_re/
+!output/test_v051_moss/
+!output/test_cam_multi/
+!output/test_cam_re/
+!output/test_cam_wa/
+*.seglst_tcpwer*.json
+# 音频原始数据不入库
+audio/*
+!audio/.gitkeep
+nemo_venv/

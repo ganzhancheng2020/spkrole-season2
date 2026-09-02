@@ -1,0 +1,107 @@
+# === 虚拟环境（可重建，勿入库）===
+.venv/
+baseline/.venv/
+baseline/diarizen_venv/
+baseline/dz_venv/
+
+# === 第三方源码副本（52M，可从 github.com/BUTSpeechFIT/DiariZen 重新 clone）===
+baseline/third_party/
+
+# === 声纹向量缓存：emb_test 是一键复现的必需输入，放行；其余忽略 ===
+baseline/output/emb_*/
+!baseline/output/emb_test/
+
+# === 数据（1.1G，从官方重下；标注合并版在 baseline/output/all.ref.seglst.json）===
+data/
+*.zip
+*.wav
+baseline/audio/
+
+# === 凭据（绝不入库）===
+.env
+baseline/.env
+**/.env
+
+# === 缓存/系统 ===
+**/__pycache__/
+*.pyc
+.ruff_cache/
+.DS_Store
+
+# 注：baseline/output/ 与 output_test/ 的 *.json 是产物/事实载体，保留入库。
+baseline/nemo_venv/
+baseline/MOSS-Transcribe-Diarize/
+baseline/output_test_moss/
+baseline/submission_v007.json
+baseline/output_test_v010/
+baseline/submission_v010.json
+baseline/output_test_v011/
+baseline/submission_v011.json
+baseline/output_test_v012/
+baseline/output_test_ft/
+baseline/submission_v012.json
+baseline/models/
+baseline/output_test_v013/
+baseline/output_test_ck84_fp32/
+baseline/submission_v013.json
+baseline/output_test_v014/
+baseline/submission_v014.json
+node_modules/
+dist/
+build/
+__pycache__/
+.matpilot-worktrees/
+*.log
+runs/
+outputs/
+checkpoints/
+!.matpilot/
+!.matpilot/**
+baseline/output_test_v017b/
+baseline/submission_v017b.json
+baseline/output/v018_pick/
+
+# === 2026-08-08 新增产物（可重跑生成，勿入库；沿用 v010–v017b 的忽略惯例）===
+# 注：.gitignore 的 # 只在行首是注释，行尾 # 会成为模式的一部分 —— 故注释独占一行。
+
+# 工具本地状态（evals / turn_durations）
+.claude/
+
+# 仿真产物 265M
+baseline/output_sim_v019/
+
+baseline/output_dev_funasr/
+baseline/output_dev_funasr_pilot/
+baseline/output_test_funasr/
+
+# output_test_fr：run_full_pipeline.sh 的 Step 3 产物，放行
+!baseline/output_test_fr/
+baseline/output_test_fr2/
+
+# FireRedASR2 test 转写（含 .ts.json 词级时间戳，词级/CAM 侧仲裁要用）
+baseline/output_test_fr3/
+
+baseline/output_test_ac05/
+baseline/output_test_v019/
+baseline/output_test_v024/
+baseline/submission_v019.json
+
+# v026 词级仲裁 test 中间产物（wa0 = word_arb 输出，v026 = 集成后）
+# 提交物 submission_v026.json 入库，中间目录不入库（可由 src/word_arb.py 复算）
+baseline/output_test_wa0/
+baseline/output_test_v026/
+
+# v030 微调 ck84 的 test 派生产物（D5.3 已封死，留档备查不入库）
+baseline/output_test_fr_ck84/
+baseline/output_test_wa_ck84/
+
+# 工具本地状态
+.workbuddy/
+
+# v030 提交物的工作副本，与 submit/archive/submission_v030_20260809.json 逐字节相同
+# 归档件是 durable 记录，此副本不重复入库
+submit/submission_v030_raw.json
+
+# 本地 FireRed 权重（4.7G），2026-08-13 落到项目内持久目录，
+# 修掉「权重放 /tmp 被清」这个已踩 5 次的坑。不入库。
+/models/
