@@ -3,7 +3,9 @@
 # 前置：GPU 上跑完 test 侧探针，产出 test_spk_scores.json
 set -euo pipefail
 cd "$(dirname "$0")/baseline"
-GPU='sshpass -p 1MKdLIjhr2uF ssh -p 43879 -o StrictHostKeyChecking=no root@connect.nmb2.seetacloud.com'
+# 凭据从环境变量读取，勿写进脚本：
+#   export GPU_HOST=<user@host>  GPU_PORT=<port>  SSHPASS=<password>
+GPU="sshpass -e ssh -p ${GPU_PORT:?需设置 GPU_PORT} -o StrictHostKeyChecking=no ${GPU_HOST:?需设置 GPU_HOST}"
 B=/root/autodl-tmp/hf/hub/models--OpenMOSS-Team--MOSS-Transcribe-Diarize/snapshots/e8681d68e7042738ffca8ac8212bc8fcb1131ab8
 
 if [ ! -f /tmp/test_spk_scores.json ]; then
@@ -11,8 +13,8 @@ if [ ! -f /tmp/test_spk_scores.json ]; then
   $GPU "cd /root/autodl-tmp/ft && nohup /root/autodl-tmp/envs/moss/bin/python src/spk_ac_probe.py \
       --jsonl test_probe.jsonl --model $B --out test_spk_scores.json > testprobe.log 2>&1 &"
   until $GPU 'grep -q SPK_AC_PROBE_DONE\|DONE /root/autodl-tmp/ft/testprobe.log' 2>/dev/null; do sleep 60; done
-  sshpass -p 1MKdLIjhr2uF scp -P 43879 -o StrictHostKeyChecking=no \
-      root@connect.nmb2.seetacloud.com:/root/autodl-tmp/ft/test_spk_scores.json /tmp/
+  sshpass -e scp -P "${GPU_PORT}" -o StrictHostKeyChecking=no \
+      "${GPU_HOST}":/root/autodl-tmp/ft/test_spk_scores.json /tmp/
 fi
 
 echo "== 开新说话人 =="
