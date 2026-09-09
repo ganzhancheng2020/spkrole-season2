@@ -59,9 +59,21 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 ROOT = BASE_DIR.parent
-# 硬编码 dev：test 不得参与训练（赛题 §103/§148），不开放为参数
-DEV_REF = ROOT / "data/extracted/dev/dev/ref.seglst.json"
-DEV_WAV = ROOT / "data/extracted/dev/dev/wav"
+# 可配置的只是 dev 目录的**位置**（`--dev-root`，供 xfdata/ 布局用）。
+# 「素材只能来自 dev」这条不开放为参数：test 不得参与训练（赛题 §103/§148）。
+DEV_ROOT = ROOT / "data/extracted/dev/dev"
+DEV_REF = DEV_ROOT / "ref.seglst.json"
+DEV_WAV = DEV_ROOT / "wav"
+
+
+def set_dev_root(root: Path) -> None:
+    """把 dev 素材目录指到别处（须含 ref.seglst.json 与 wav/）。"""
+    global DEV_ROOT, DEV_REF, DEV_WAV
+    root = Path(root).resolve()
+    ref, wav = root / "ref.seglst.json", root / "wav"
+    if not ref.is_file() or not wav.is_dir():
+        raise SystemExit(f"--dev-root {root} 下缺 ref.seglst.json 或 wav/")
+    DEV_ROOT, DEV_REF, DEV_WAV = root, ref, wav
 SR = 16000
 # 外部素材片段的 session_id 前缀。见 load_pool(extra_material=...) 与 render()：
 # 带该前缀的片段从素材目录取音频，而非从 dev wav 取。
@@ -409,6 +421,10 @@ def main() -> int:
                     help="相邻发言重叠概率（默认 0.221 = dev 实测；设 0 可诊断"
                          "「波形相加式重叠是否为文本崩坏主因」）")
     ap.add_argument("--stats", action="store_true", help="只打印 dev 真实分布后退出")
+    ap.add_argument("--dev-root", default=None,
+                    help="dev 目录位置（须含 ref.seglst.json 与 wav/）。"
+                         "默认 ../data/extracted/dev/dev；打包成 xfdata/ 布局时传 ../xfdata/dev/dev。"
+                         "只改位置，不改「素材只能来自 dev」这条。")
     ap.add_argument("--hard-boost", type=float, default=1.0,
                     help="难例过采样倍率：5 人段权重 ×boost、6 人段 ×boost²。"
                          "默认 1.0 = 照抄 dev 真实分布（行为不变）。")
@@ -423,6 +439,10 @@ def main() -> int:
                     help="素材来源切分。**做微调实验必须用 train**，否则 holdout 也进了"
                          "训练数据，验证集不再干净（实测 81 段泄露可伪造 7.0 点）")
     args = ap.parse_args()
+
+    if args.dev_root:
+        set_dev_root(Path(args.dev_root))
+        logger.info("dev 素材目录 → %s", DEV_ROOT)
 
     if args.stats:
         print_stats()

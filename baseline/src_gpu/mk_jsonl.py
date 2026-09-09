@@ -1,9 +1,23 @@
-"""SegLST -> MOSS 微调 JSONL。格式与既有 sim_jsonl/train.jsonl 逐字段一致。"""
+"""SegLST -> MOSS 微调 JSONL。格式与既有 sim_jsonl/train.jsonl 逐字段一致。
+
+用法：
+    python mk_jsonl.py <ref.seglst.json> <wav 目录> <out.jsonl> [proto.jsonl]
+
+第 4 个参数可省。省略时用下面的 DEFAULT_PROMPT —— 它就是出货模型
+（user_data/model_data/moss_sim_all106）当初实际训练所用的提示词。
+"""
 import json, sys
 from collections import defaultdict
 
-src, wav_dir, out, proto = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
-PROMPT = json.loads(open(proto, encoding="utf-8").readline())["conversation"][0]["content"]
+DEFAULT_PROMPT = (
+    "请将音频转写为文本，每一段需以起始时间戳和说话人编号（[S01]、[S02]、[S03]…）开头，"
+    "正文为对应的语音内容，并在段末标注结束时间戳，以清晰标明该段语音范围。"
+)
+
+src, wav_dir, out = sys.argv[1], sys.argv[2], sys.argv[3]
+proto = sys.argv[4] if len(sys.argv) > 4 else None
+PROMPT = (json.loads(open(proto, encoding="utf-8").readline())["conversation"][0]["content"]
+          if proto else DEFAULT_PROMPT)
 
 def join_tokens(words: str) -> str:
     t = words.split(); out_ = []

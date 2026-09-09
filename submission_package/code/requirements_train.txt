@@ -1,0 +1,45 @@
+# GPU 环境 —— 训练（bash code/train.sh）与从原始音频重跑（bash code/test.sh --full）时需要。
+# 版本取自我们实际出货所用的那台机器（Ubuntu 22.04.5 / RTX 3090 24 GB / Python 3.12.13）。
+#
+#   python3 -m venv .venv-gpu && . .venv-gpu/bin/activate
+#   pip install -r code/requirements_train.txt
+#
+# torch 请按本机 CUDA 版本选轮子；我们用的是 cu128：
+#   pip install torch==2.9.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu128
+
+# --- 深度学习框架 ---
+torch==2.9.1
+torchaudio==2.9.1
+transformers==5.14.1
+accelerate==1.14.0
+safetensors==0.8.0
+tokenizers==0.22.2
+sentencepiece==0.2.2
+datasets==5.0.1
+peft==0.20.0
+
+# --- 语音模型工具链（CAM++ 分离、fun-asr 转写）---
+funasr==1.4.3
+modelscope==1.39.1
+onnxruntime==1.29.0
+kaldiio==2.18.1
+torch-complex==0.4.4
+hydra-core==1.3.5
+omegaconf==2.3.1
+jieba==0.42.1
+
+# --- 数值与音频 ---
+numpy==2.4.6
+scipy==1.18.0
+scikit-learn==1.9.0
+soundfile==0.14.0
+librosa==0.11.0
+
+# --- 其它 ---
+PyYAML==6.0.3
+requests==2.34.2
+tqdm==4.70.0
+
+# FireRedASR2-AED 不在 PyPI 上，需按其官方仓库装好源码与权重，再用环境变量指过去：
+#   export FIRERED_SRC=/path/to/FireRedASR2S
+#   export FIRERED_CKPT=/path/to/FireRedASR2-AED

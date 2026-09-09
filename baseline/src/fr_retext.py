@@ -5,20 +5,30 @@
 speaker / start_time / end_time 一律不动。
 """
 import json
+import os
 import re
 import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, '/tmp/FireRedASR2S')
-from fireredasr2s.fireredasr2.asr import FireRedAsr2, FireRedAsr2Config
+# FireRedASR2 的源码目录与权重目录。默认沿用历史路径（不传环境变量时行为不变），
+# 打包成 xfdata/ 布局时用环境变量指进包内 —— 变量名与 word_arb.py 保持同一套。
+# noqa S108：这两个是**只读**的源码/权重目录，不是本进程创建的临时文件。
+FIRERED_SRC = os.environ.get("FIRERED_SRC", "/tmp/FireRedASR2S")  # noqa: S108
+FIRERED_CKPT = os.environ.get("FIRERED_CKPT", "/tmp/FireRedASR2-AED")  # noqa: S108
+
+sys.path.insert(0, FIRERED_SRC)
+from fireredasr2s.fireredasr2.asr import (  # type: ignore[import-not-found]  # noqa: E402
+    FireRedAsr2,
+    FireRedAsr2Config,
+)
 
 PUNCT = re.compile(r"""[，。！？、；：""''…,.!?;:"'()\[\]【】]""")
 TOKEN = re.compile(r"[A-Za-z]+|[0-9]+|[一-鿿]")
 pred_dir, wav_dir, out_dir = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
 out_dir.mkdir(parents=True, exist_ok=True)
 cfg = FireRedAsr2Config(use_gpu=False, return_timestamp=True, beam_size=3)
-m = FireRedAsr2.from_pretrained('aed', '/tmp/FireRedASR2-AED', cfg)
+m = FireRedAsr2.from_pretrained('aed', FIRERED_CKPT, cfg)
 preds = sorted(p for p in pred_dir.glob('*.seglst.json') if p.name.split('.')[0].isdigit())
 t0 = time.time()
 for i, p in enumerate(preds, 1):

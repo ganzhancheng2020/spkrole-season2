@@ -14,8 +14,6 @@ import logging
 import re
 from pathlib import Path
 
-from config import CFG
-
 logger = logging.getLogger(__name__)
 
 
@@ -33,7 +31,9 @@ def _to_words(text: str) -> str:
       - 英文词整体小写
       - 不含标点（fun-asr 返回带标点，需剔除）
     """
-    cleaned = re.sub(r"[，。！？、；：""''…,\.!\?;:\"'()\[\]【】]", "", text)
+    # 三引号 raw：串里含 ASCII 双引号，用单引号 raw 会被截断成「raw + 非 raw」两段拼接，
+    # 后半段的 \. \? 是无效转义（SyntaxWarning，未来版本报错）。与 fr_retext.py 的 PUNCT 同写法。
+    cleaned = re.sub(r"""[，。！？、；：""''…,.!?;:"'()\[\]【】]""", "", text)
     tokens = re.findall(r"[A-Za-z]+|[0-9]+|[一-鿿]", cleaned)
     return " ".join(t.lower() if t.isascii() else t for t in tokens).strip()
 

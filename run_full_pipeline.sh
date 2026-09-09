@@ -55,13 +55,34 @@ need() {  # need <目录> <期望文件数> <阶段名> <缺失时应执行的�
 }
 
 say "环境检查"
-for pair in "$PY:baseline/.venv" "$PY_NP:.venv" "$PY_DZ:baseline/diarizen_venv"; do
-    [ -x "${pair%%:*}" ] && pass "解释器 ${pair##*:}" || { fail "找不到解释器 ${pair##*:}"; exit 1; }
-done
+# 只有 .venv 是硬依赖：Step 6/13 与谱系校验都在它里面跑。
+[ -x "$PY_NP" ] || { fail "找不到解释器 .venv（Step 6/13 与谱系校验必需）"; exit 1; }
+pass "解释器 .venv"
 "$PY_NP" -c "import numpy" 2>/dev/null && pass "numpy（cam_split_verify 需要）" \
     || { fail "$PY_NP 缺 numpy"; exit 1; }
-[ -d "$WAV" ] && pass "原始音频 $(ls -1 "$WAV"/*.wav 2>/dev/null | wc -l | tr -d ' ') 个 wav" \
-              || fail "找不到 $WAV"
+# baseline/.venv 只跑 Step 10-12，这三个脚本除标准库外无依赖，缺了就退回 .venv。
+if [ -x "$PY" ]; then
+    pass "解释器 baseline/.venv"
+else
+    PY="$PY_NP"
+    note "baseline/.venv 不存在 → Step 10-12 改用 .venv（这三步只用标准库）"
+fi
+# diarizen_venv 只有 --rerun-slow 才用得到。
+if [ -x "$PY_DZ" ]; then
+    pass "解释器 baseline/diarizen_venv"
+elif [ "$RERUN_SLOW" = 1 ]; then
+    fail "--rerun-slow 需要 baseline/diarizen_venv（Step 1/5 的 CAM++ 与声纹计算）"; exit 1
+else
+    note "baseline/diarizen_venv 不存在（仅 --rerun-slow 需要，本次跳过）"
+fi
+# 原始音频只有 --rerun-slow 才真正读；默认模式全程复用归档产物。
+if [ -d "$WAV" ]; then
+    pass "原始音频 $(ls -1 "$WAV"/*.wav 2>/dev/null | wc -l | tr -d ' ') 个 wav"
+elif [ "$RERUN_SLOW" = 1 ]; then
+    fail "--rerun-slow 需要原始音频，但找不到 $WAV"; exit 1
+else
+    note "找不到 $WAV（仅 --rerun-slow 需要，本次跳过）"
+fi
 
 say "Step 1  CAM++ 分离 + 段级声纹"
 if [ "$RERUN_SLOW" = 1 ] && [ "$CHECK_ONLY" = 0 ]; then
@@ -74,7 +95,7 @@ else
     need output/diar_test_m3_7_0.70 394 "Step 1" \
 "PYTHONPATH=src diarizen_venv/bin/python src/diarize.py --wav-dir \$WAV \\
         --out output/diar_test_m3_7_0.70 --min-spk 3 --max-spk 7 --merge-thr 0.70 --emb-cache output/emb_test"
-    pass "[复用] diar_test_m3_7_0.70 + emb_test（分离结果为钉定基准，见 project.md 附录 C）"
+    pass "[复用] diar_test_m3_7_0.70 + emb_test（分离结果为钉定基准，见 project.md 3.4 谱系证据）"
 fi
 
 say "Step 2-4  MOSS 解码 → FireRed 重转写 → 词级仲裁（GPU）"

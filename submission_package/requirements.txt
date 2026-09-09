@@ -1,0 +1,16 @@
+# 预测环境（bash code/test.sh 默认模式）—— Python 3.11+，纯 CPU 即可
+#
+#   python3 -m venv .venv && . .venv/bin/activate
+#   pip install -r requirements.txt
+#
+# 默认模式复用 user_data/tmp_data/stage_outputs/ 下已归档的 Step 1-9 产物，
+# 只跑 Step 6 与 Step 10-13。这几步除 Python 标准库外只需要 numpy。
+numpy==2.5.1
+
+# 以下两个仅用于自行复核分数（meeteval-wer tcpwer -r <ref> -h <hyp> --collar 5），
+# 产出 prediction_result/result.json 本身用不到。
+meeteval==0.4.3
+simplejson==4.1.1
+
+# 若要从原始音频重跑 Step 1-9（bash code/test.sh --full，需 GPU），
+# 或重新训练（bash code/train.sh），另装 code/requirements_train.txt。

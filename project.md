@@ -396,15 +396,28 @@ v078 那行值得单独看：路由从 82 场放宽到 92 场，线上**一位�
 ## 3.5 MOSS 微调（Step 2 所用模型的来源）
 
 用官方 dev 的**全部 106 场**切片重组成 800 条仿真对话作为微调素材（不引入任何外部语料），
-在 MOSS 基座上训 2 个 epoch，学习率 1e-5，优化器 AdamW。生成与训练的完整命令见
-[README.md](README.md#reproduce) 与 `run_full_pipeline.sh`。
+在 MOSS 基座上微调。全部超参如下 —— 这份清单与出货 checkpoint 自带的 `training_args.bin`
+逐项核对过：
 
-**仿真数据可确定性重生成，因此不随仓库分发（1.0 G）。** 生成脚本用单一
-`random.Random(seed)` 驱动全部采样，输入只有 `data/extracted/dev/dev/` 下的参考标注与音频
-（都在仓库内），生成约 45 秒。这一点是**对着训练出货模型的那份真实数据验证过的**：
-原始数据归档在 GPU 机 `/root/autodl-tmp/ft/sim_all106`（800 条），本地重跑后
-`ref.seglst.json` 的 SHA256 与归档**逐字节一致**，抽样的 5 个音频也**全部一致**，
+| 超参 | 值 | 超参 | 值 |
+|---|---|---|---|
+| num_train_epochs | 2 | optim | **adafactor** |
+| learning_rate | 1e-5 | 精度 | bf16 |
+| lr_scheduler_type | cosine | per_device_train_batch_size | 1 |
+| warmup_ratio | 0.1 | gradient_accumulation_steps | 4（等效 batch 4）|
+| max_length | 8192 | gradient_checkpointing | 开 |
+
+生成与训练的完整命令见 [README.md](README.md#reproduce) 与 `run_full_pipeline.sh`。
+
+**仿真数据可确定性重生成。** 生成脚本用单一 `random.Random(seed)` 驱动全部采样，
+输入只有 dev 的参考标注与音频，`--seed 0` 下生成约 45 秒。这一点是**对着训练出货模型的
+那份真实数据验证过的**：用 `--dev-root` 指向官方 dev 重跑后，`ref.seglst.json` 的 SHA256
+（`deba73ebc0b63164…`）与归档**逐字节一致**，抽样的 5 个音频也**全部一致**，
 生成日志的时长画像（中位 42.7 s，dev 41.9 s）与当时的记录相同。
+
+因此它在两处的处置不同：研究仓里**不分发**（1.0 G，按需重生成）；
+按赛方《代码审核规范》§4b「给出增广代码与标注结果」打的提交包里**随包分发**，
+位置是 `user_data/tmp_data/sim_all106/`。
 
 **配方是怎么定的**：先用 82 场素材重组 800 条，拿到 0.15096；把数据加到 3000 条反而退步到
 0.15879 —— 说明**多样性在 800 条已饱和，再抽只是让模型反复听同一批人**。
