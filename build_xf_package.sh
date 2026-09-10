@@ -74,7 +74,29 @@ cat > "$P/code/train/README.md" <<'EOF'
 EOF
 
 say "6/8  方案文档 → code/docs/"
-cp "$SRC/project.md" "$P/code/docs/project.md"
+# project.md 原本写给研究仓（位于仓库根），直接搬进 code/docs/ 会有两个问题：
+#   ① 文中的 [xxx](README.md) 会解析成 code/docs/README.md —— 不存在
+#   ② 文中提到的 run_full_pipeline.sh / online_ledger.md / build_v0*.sh 等
+#      属研究仓的实验脚本，按规范不进提交包
+# 故这里重写相对链接并前置一段来源说明，避免审核方读到断链。
+{
+    cat <<'HDR'
+> **本文来源说明**：这份《方案归档与复盘》原文写给项目的研究仓库，收录进提交包
+> 是作为算法方案与演进过程的完整说明（对应规范 §4「方案中的算法贡献」）。
+>
+> 阅读时请注意两点：
+>
+> 1. 文中形如 `run_full_pipeline.sh`、`online_ledger.md`、`build_v047.sh`、
+>    `submission_v065.json` 的文件属于研究仓的实验脚本与流水账，**按规范不随包分发**；
+>    提交包中与之对应的是 `code/test.sh`（一键复现全链路）与 `code/train.sh`（训练）。
+> 2. 文中引用的 README 指**包根的 `README.md`**（本文位于 `code/docs/`）。
+
+---
+
+HDR
+    sed 's|](README\.md|](../../README.md|g' "$SRC/project.md"
+} > "$P/code/docs/project.md"
+echo "    已重写相对链接并前置来源说明"
 
 say "7/8  Step 1-9 归档产物 → user_data/tmp_data/stage_outputs/"
 S="$P/user_data/tmp_data/stage_outputs"

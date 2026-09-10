@@ -193,6 +193,7 @@ test wav ─┬─▶ MOSS-SAT ─▶ FireRed 重转写 ─▶ 词级仲裁 ─�
 | 3 | FireRedASR2 按 MOSS 的切分重新转写同一段音频 | `fr_retext.py` | ~1 h | `output_test_fr` |
 | 4 | 词级声学仲裁：按差异块枚举 MOSS/FireRed 混合，声学似然选最优 | `word_arb.py` | ~1 h | `test_wa_m05b6` |
 | 5 | 归属改写：段内多窗声纹一致性，留一法扣掉本段自己的窗 | `spk_reassign.py` | ~25 min | `test_v048_re` |
+| 5.5 | 用 MOSS 给每段的说话人标记打 teacher-forcing 似然，作为 Step 6 的判据 | `build_spk_probe_jsonl.py` + `spk_ac_probe.py` | ~30 min | `test_spk_scores2.json` |
 | 6 | 短段归属改写：用 MOSS 说话人似然，只改词数 ≤5 的段 → **MOSS 分支完成** | `spk_short_relabel.py` | ~10 s | `test_v051_moss` |
 | 7 | fun-asr 转写（开 diarization，原生给出说话人）| `funasr_local.py` | ~1 h | `test_cam_multi` |
 | 8 | 用 CAM++ 声纹为 fun-asr 的分段重打说话人标签 | `spk_relabel.py` | ~20 min | `test_cam_re` |
@@ -331,7 +332,8 @@ bash code/train.sh
 4. **FireRedASR2-AED 需要手工装。** 它不在 PyPI 上，装好后用 `FIRERED_SRC` / `FIRERED_CKPT`
    两个环境变量指过去（`code/src/fr_retext.py`、`code/src/word_arb.py` 都读这两个变量）。
 5. **`code/src/` 里除出货脚本外还有约 90 个探针脚本**，是探索过程中已否定方向的留存，
-   不参与最终链路。出货链路用到的 12 个是：`diarize.py`、`moss_sat.py`、`fr_retext.py`、
-   `word_arb.py`、`spk_reassign.py`、`spk_short_relabel.py`、`funasr_local.py`（或 `run.py`）、
-   `spk_relabel.py`、`pick_ensemble.py`、`normalize_output.py`、`merge_submit.py`、
-   `cam_split_verify.py`。
+   不参与最终链路。出货链路用到的 14 个是：`diarize.py`、`moss_sat.py`、`fr_retext.py`、
+   `word_arb.py`、`spk_reassign.py`、`build_spk_probe_jsonl.py`、`spk_ac_probe.py`、
+   `spk_short_relabel.py`、`funasr_local.py`（或 `run.py`）、`spk_relabel.py`、
+   `pick_ensemble.py`、`normalize_output.py`、`merge_submit.py`、`cam_split_verify.py`。
+   其中默认模式（复用归档产物）只跑最后 5 个 + `spk_short_relabel.py`。
