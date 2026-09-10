@@ -7,7 +7,7 @@
 | **最终成绩** | **tcpWER = 0.14309** |
 | 官方基线 | fun-asr 直出 dev 26.01% |
 | 线上提交 | 46 次，17 次刷新纪录（0.19467 → 0.14309，相对提升 26.5%）|
-| 结果文件 | `prediction_result/result.json`（5186 条，SHA256 `47bfe5f98afbe1f0…`）|
+| 结果文件 | `prediction_result/result`（5186 条，SHA256 `47bfe5f98afbe1f0…`）|
 
 **一句话方法**：双分支 + 规则路由 + 声纹校验的说话人拆分。
 
@@ -29,7 +29,8 @@
 │       ├── train_jsonl/           微调用的 JSONL 训练清单
 │       └── artifacts/             Step 6 所需的说话人似然打分
 ├── prediction_result/
-│   └── result.json                test.sh 的产出
+│   ├── result                     test.sh 的产出（规范 §3 要求的文件名）
+│   └── result.json                同内容副本，便于按 JSON 惯例查看
 └── code/
     ├── test.sh                    预测入口（必选）
     ├── train.sh                   训练入口（必选）
@@ -62,10 +63,11 @@ Step 13  CAM 引导 + 声纹校验的说话人拆分 → 最终结果
     INFO 拆分 14 次，覆盖 14 个 session；写出 5186 条
 
 结果校验
-  ✓ prediction_result/result.json（5186 条 SegLST 记录）
+  ✓ prediction_result/result（5186 条 SegLST 记录）
+  ✓ prediction_result/result.json（同内容副本）
   ✓ 中间件 submission_v065（线上 0.14354）
     SHA256 e78bba70c9d0c1f0
-  ✓ 最终结果 result.json（线上 0.14309）
+  ✓ 最终结果 result（线上 0.14309）
     SHA256 47bfe5f98afbe1f0
 ```
 
@@ -179,7 +181,7 @@ test wav ─┬─▶ MOSS-SAT ─▶ FireRed 重转写 ─▶ 词级仲裁 ─�
           │                                                            │
           └─▶ CAM++ 分离 + 段级声纹 ─────────────▶ cam_split_verify ◀──┘
                                                           │
-                                                   result.json
+                                                     result
 ```
 
 ### 5.1 逐步说明
@@ -198,7 +200,7 @@ test wav ─┬─▶ MOSS-SAT ─▶ FireRed 重转写 ─▶ 词级仲裁 ─�
 | 10 | 逐场路由：按说话人数与轮换率在两分支间选一个（83/394 场走 CAM）| `pick_ensemble.py` | ~5 s | 路由后的 SegLST |
 | 11 | 字符规范化：把 ref 词表中出现 0 次的字符改写成 ref 的写法 | `normalize_output.py` | ~3 s | 规范化后的 SegLST |
 | 12 | 合并为单个 SegLST（此时线上 0.14354）| `merge_submit.py` | ~2 s | `submission_v065.json` |
-| 13 | CAM 引导 + 声纹校验的说话人拆分 → **最终结果**（线上 0.14309）| `cam_split_verify.py` | ~15 s | `result.json` |
+| 13 | CAM 引导 + 声纹校验的说话人拆分 → **最终结果**（线上 0.14309）| `cam_split_verify.py` | ~15 s | `result` |
 
 ### 5.2 三个关键机制
 

@@ -118,8 +118,12 @@ EOF
 cat > "$P/prediction_result/README.txt" <<'EOF'
 本目录留给预测结果（代码审核规范 §3：初始时会被清空）。
 
-执行 bash code/test.sh 后，此处会生成 result.json —— SegLST 格式、UTF-8，
-与竞赛提交要求一致，即我们线上取得 tcpWER 0.14309 的那份文件
+执行 bash code/test.sh 后，此处会生成：
+
+    result        主产物 —— 本规范 §3 要求的文件名，SegLST 格式、UTF-8
+    result.json   同内容副本，便于按赛题的 JSON 惯例直接查看与校验
+
+两者内容逐字节相同，即我们线上取得 tcpWER 0.14309 的那份文件
 （5186 条，SHA256 47bfe5f98afbe1f0…）。
 EOF
 

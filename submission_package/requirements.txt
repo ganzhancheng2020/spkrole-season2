@@ -8,7 +8,7 @@
 numpy==2.5.1
 
 # 以下两个仅用于自行复核分数（meeteval-wer tcpwer -r <ref> -h <hyp> --collar 5），
-# 产出 prediction_result/result.json 本身用不到。
+# 产出 prediction_result/result 本身用不到。
 meeteval==0.4.3
 simplejson==4.1.1
 

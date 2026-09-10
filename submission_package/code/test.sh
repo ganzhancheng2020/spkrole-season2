@@ -6,8 +6,8 @@
 #   bash code/test.sh --full   从 xfdata/ 的原始音频重跑 Step 1-9 再接 Step 10-13。
 #                              需 GPU，约 5 小时（见 code/test/run_stage1_9.sh）。
 #
-# 结果写入 prediction_result/result.json（SegLST 格式，UTF-8），
-# 并与我们线上提交文件的 SHA256 逐位比对。
+# 结果写入 prediction_result/result（SegLST 格式，UTF-8；规范 §3 要求的文件名），
+# 另附一份同内容的 result.json 副本，并与我们线上提交文件的 SHA256 逐位比对。
 
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"     # 全程以 code/ 为工作目录，路径一律相对
@@ -119,17 +119,23 @@ PYTHONPATH=src "$PY" src/merge_submit.py --dir "$W/norm" \
 
 say "Step 13  CAM 引导 + 声纹校验的说话人拆分 → 最终结果"
 mkdir -p "$OUT"
+# 主产物按规范 §3 命名为 result（无扩展名），内容为 SegLST JSON。
 PYTHONPATH=src "$PY" src/cam_split_verify.py \
     --hyp "$W/submission_v065.json" \
     --diar "$STAGE/diar_test_m3_7_0.70" --emb "$STAGE/emb_test" \
-    --out "$OUT/result.json" \
+    --out "$OUT/result" \
     --min-frac 0.05 --max-sim 0.50 --min-gap 1 --max-gap 1 2>&1 \
     | grep -E "拆分" | sed 's/^/    /'
+# 另存一份带 .json 后缀的同内容副本，方便按赛题的 JSON 惯例直接查看与校验。
+cp "$OUT/result" "$OUT/result.json"
 
 say "结果校验"
-[ -s "$OUT/result.json" ] || { fail "未产出 prediction_result/result.json"; exit 1; }
-N=$("$PY" -c "import json,sys;print(len(json.load(open(sys.argv[1],encoding='utf-8'))))" "$OUT/result.json")
-pass "prediction_result/result.json（$N 条 SegLST 记录）"
+[ -s "$OUT/result" ] || { fail "未产出 prediction_result/result"; exit 1; }
+N=$("$PY" -c "import json,sys;print(len(json.load(open(sys.argv[1],encoding='utf-8'))))" "$OUT/result")
+pass "prediction_result/result（$N 条 SegLST 记录）"
+cmp -s "$OUT/result" "$OUT/result.json" \
+    && pass "prediction_result/result.json（同内容副本）" \
+    || fail "result 与 result.json 内容不一致"
 
 sha16() { if command -v shasum >/dev/null; then shasum -a 256 "$1" | cut -c1-16
           else sha256sum "$1" | cut -c1-16; fi; }
@@ -145,8 +151,8 @@ check() {  # check <文件> <期望前16位> <名称>
     fi
 }
 check "$W/submission_v065.json" "$EXPECT_V065"  "中间件 submission_v065（线上 0.14354）"
-check "$OUT/result.json"        "$EXPECT_FINAL" "最终结果 result.json（线上 0.14309）"
+check "$OUT/result"             "$EXPECT_FINAL" "最终结果 result（线上 0.14309）"
 
 say "小结：通过 $ok 项，失败 $bad 项"
 [ "$bad" = 0 ] || exit 1
-echo "预测完成 → prediction_result/result.json"
+echo "预测完成 → prediction_result/result（另有同内容的 result.json 副本）"
