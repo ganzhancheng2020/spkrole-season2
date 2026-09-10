@@ -58,7 +58,11 @@ fi
 
 if [ "$FULL" = 1 ]; then
     say "Step 1-9  从原始音频重跑（GPU）"
-    bash test/run_stage1_9.sh "$WAV" || { fail "Step 1-9 失败"; exit 1; }
+    # 写到独立目录，不覆盖随包归档的 stage_outputs/：
+    # 重跑失败或中断都不会污染归档，两份还能直接对比。
+    STAGE=$UD/tmp_data/stage_outputs_rerun
+    bash test/run_stage1_9.sh "$WAV" "$STAGE" || { fail "Step 1-9 失败"; exit 1; }
+    note "后续步骤改用重跑产物 $STAGE"
 fi
 
 say "Step 1-9  产物齐备性"
@@ -79,8 +83,10 @@ need test_v048_re        394 "Step 5"
 need test_cam_multi      394 "Step 7"
 need test_cam_re         394 "Step 8"
 need test_cam_wa         394 "Step 9"
-[ -f "$UD/tmp_data/artifacts/test_spk_scores2.json" ] \
-    || { fail "缺 user_data/tmp_data/artifacts/test_spk_scores2.json（Step 6 输入）"; exit 1; }
+# Step 6 的输入：重跑模式用重算的那份，默认模式用随包归档的那份。
+SCORES=$UD/tmp_data/artifacts/test_spk_scores2.json
+[ "$FULL" = 1 ] && [ -f "$STAGE/test_spk_scores2.json" ] && SCORES=$STAGE/test_spk_scores2.json
+[ -f "$SCORES" ] || { fail "缺 $SCORES（Step 6 输入，由 spk_ac_probe.py 产出）"; exit 1; }
 pass "9 个阶段产物齐备"
 
 W=$(mktemp -d)
@@ -89,7 +95,7 @@ trap 'rm -rf "$W"' EXIT
 say "Step 6   短段归属改写 → MOSS 分支完成"
 if PYTHONPATH=src "$PY" src/spk_short_relabel.py \
         --pred-dir "$STAGE/test_v048_re" \
-        --scores "$UD/tmp_data/artifacts/test_spk_scores2.json" \
+        --scores "$SCORES" \
         --out "$W/test_v051_moss" --tau 1.5 --max-words 5 >"$W/s6.log" 2>&1; then
     grep -oE "改写 [0-9]+ / [0-9]+ 段[^，]*" "$W/s6.log" | head -1 | sed 's/^/    /'
     pass "test_v051_moss"

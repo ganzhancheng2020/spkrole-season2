@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 # 按《科大讯飞-代码审核规范》组装提交包。构建器本身不进包。
 #
-#   bash build_xf_package.sh <输出目录> [--model <权重目录>] [--sim <仿真数据目录>]
+#   bash build_xf_package.sh <输出目录> [--model <权重目录>] [--base <基座快照>] [--sim <仿真数据>]
 #
 # 例：
 #   bash build_xf_package.sh /tmp/pkg                       # 只装代码+归档产物（本机）
 #   bash build_xf_package.sh /root/pkg \                    # 连权重和 800 条仿真一起装（GPU）
 #       --model /root/autodl-tmp/ft/sim_out_all106 \
+#       --base  /root/autodl-tmp/hf/hub/models--OpenMOSS-Team--MOSS-Transcribe-Diarize/snapshots/<sha> \
 #       --sim   /root/autodl-tmp/ft/sim_all106
+#
+# --base 用来把 processor 文件补进微调权重目录：HF Trainer 只存模型与 tokenizer，
+# 少了 preprocessor_config.json 等，moss_sat.py 会报缺 feature_extractor 并产出 0 条。
 #
 # 产出的骨架：
 #   README.md  requirements.txt  xfdata/  user_data/  prediction_result/  code/
@@ -18,11 +22,12 @@ SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUT="${1:?用法：bash build_xf_package.sh <输出目录> [--model <目录>] [--sim <目录>]}"
 shift
 
-MODEL_SRC=""; SIM_SRC=""
+MODEL_SRC=""; SIM_SRC=""; BASE_SRC=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --model) MODEL_SRC="${2:?--model 需要一个目录}"; shift 2 ;;
         --sim)   SIM_SRC="${2:?--sim 需要一个目录}";     shift 2 ;;
+        --base)  BASE_SRC="${2:?--base 需要一个目录}";   shift 2 ;;
         *) echo "未知参数：$1"; exit 2 ;;
     esac
 done
@@ -134,10 +139,30 @@ cat > "$P/user_data/model_data/README.md" <<'EOF'
 EOF
 
 if [ -n "$MODEL_SRC" ]; then
+    M="$P/user_data/model_data/moss_sim_all106"
     echo "    拷权重 $MODEL_SRC → user_data/model_data/moss_sim_all106/"
-    mkdir -p "$P/user_data/model_data/moss_sim_all106"
-    find "$MODEL_SRC" -maxdepth 1 -type f -exec cp {} "$P/user_data/model_data/moss_sim_all106/" \;
-    echo "    $(du -sh "$P/user_data/model_data/moss_sim_all106" | cut -f1)"
+    mkdir -p "$M"
+    find "$MODEL_SRC" -maxdepth 1 -type f -exec cp {} "$M/" \;
+    echo "    $(du -sh "$M" | cut -f1)"
+
+    # HF Trainer 存下来的 checkpoint 只带 tokenizer：对它调 AutoProcessor 会**静默退化**成
+    # Qwen2Tokenizer（无 feature_extractor），moss_sat.py 因此产出 0 条。实测把基座的
+    # preprocessor_config.json 等拷进 checkpoint 也修不好。moss_sat.py 的既定契约是
+    # 用 --processor 指向基座快照，所以这里单独放一份**不含权重**的 processor 目录（约 16 MB）。
+    if [ -n "$BASE_SRC" ]; then
+        PR="$P/user_data/model_data/moss_base_processor"
+        mkdir -p "$PR"
+        for f in $(ls -1 "$BASE_SRC"); do
+            case "$f" in *.safetensors|*.safetensors.index.json|*.png|*.bin) continue ;; esac
+            cp -L "$BASE_SRC/$f" "$PR/" 2>/dev/null || true
+        done
+        echo "    processor（无权重）→ user_data/model_data/moss_base_processor/ $(du -sh "$PR" | cut -f1)"
+        [ -f "$PR/preprocessor_config.json" ] && [ -f "$PR/processing_moss_transcribe_diarize.py" ] \
+            && echo "    ✓ processor 文件齐备" \
+            || echo "    ⚠ processor 目录不全，--full 的 Step 2 会失败"
+    else
+        echo "    ⚠ 未传 --base：包内没有 processor 目录，--full 的 Step 2 会失败"
+    fi
 else
     echo "    （未传 --model，跳过权重）"
 fi
