@@ -34,6 +34,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import re
 import sys
 from pathlib import Path
@@ -46,6 +47,10 @@ ASR_MODEL_FUNASR_NANO = "FunAudioLLM/Fun-ASR-Nano-2512"   # 见文件头第 2 �
 VAD_MODEL = "fsmn-vad"
 PUNC_MODEL = "ct-punc"   # spk_model 依赖它切句，缺了会直接产出 0 条
 SPK_MODEL = "cam++"
+
+# FORCE_RERUN=1 时无视已有产物、逐 session 全部重算（完整复现用）。
+# 默认 0 = 断点续跑。全链路脚本会显式置 1。
+FORCE_RERUN = os.environ.get("FORCE_RERUN", "0") == "1"
 
 # 与 seglst_converter._to_words 保持一致：去标点、中文逐字、英文小写。
 # 三引号 raw：串里含 ASCII 双引号，单引号 raw 会被截断成两段（后半段非 raw，\. 是无效转义）。
@@ -116,7 +121,7 @@ def main() -> int:
     done = skipped = 0
     for i, wav in enumerate(wavs, 1):
         dst = out_dir / f"{wav.stem}.seglst.json"
-        if dst.exists():          # 断点续跑
+        if dst.exists() and not FORCE_RERUN:   # 断点续跑；FORCE_RERUN=1 则全部重算
             skipped += 1
             continue
         try:

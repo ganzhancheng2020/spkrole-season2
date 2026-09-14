@@ -49,6 +49,12 @@ def main() -> int:
                 logger.warning("缺音频 %s，跳过", wav)
                 continue
             recs = sorted(json.load(open(p, encoding="utf-8")), key=lambda r: r["start_time"])
+            # 无分段的 session 没有可打分的说话人标记；写进 jsonl 会得到空 target，
+            # 下游 spk_ac_probe.py 的 collator 直接抛 ValueError 中断整批。
+            # 实测 test 集中 295 属此类（MOSS-SAT 对该段音频解码为空）。
+            if not recs:
+                logger.warning("%s 无分段，跳过", sid)
+                continue
             order: dict[str, int] = {}
             for r in recs:
                 if r["speaker"] not in order:

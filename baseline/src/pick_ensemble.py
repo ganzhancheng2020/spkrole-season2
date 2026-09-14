@@ -138,6 +138,19 @@ def main() -> int:
         m_nspk = n_speakers(moss_recs)
         c_nspk = n_speakers(cam_recs)
 
+        # 空分支一律让位给非空分支：空假设在 tcpWER 下只会把该场 ref 的全部词记为
+        # deletion，不可能优于任何非空输出。下面三条规则都带「CAM 人数 ≥ N」的前提，
+        # MOSS 为空且 CAM 人数不足时会保留空的 MOSS，导致整场丢失（实测 session 295）。
+        if not moss_recs or not cam_recs:
+            chosen = cam_recs if not moss_recs else moss_recs
+            reason = "empty_" + ("moss" if not moss_recs else "cam")
+            shutil.copy(cam_path if chosen is cam_recs else moss_path,
+                        out_dir / f"{sid}.seglst.json")
+            if chosen is cam_recs:
+                switched.append(sid)
+            by_reason[reason] = by_reason.get(reason, 0) + 1
+            continue
+
         few_spk = m_nspk <= args.moss_max_spk
         low_turn = turn_rate(moss_recs) <= args.moss_max_turn_rate
         v011_ok = (few_spk or low_turn) and c_nspk >= args.cam_min_spk

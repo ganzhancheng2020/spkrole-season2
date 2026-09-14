@@ -312,7 +312,7 @@ bash code/train.sh
 | MOSS-Transcribe-Diarize 0.9B | `OpenMOSS-Team/MOSS-Transcribe-Diarize`（HuggingFace）| Apache-2.0 | 端到端说话人归属转写 | **是**（见 §6）|
 | CAM++ 说话人分离 | `iic/speech_campplus_speaker-diarization_common`（ModelScope）| 开源 | 分离 + 段级声纹 | 否 |
 | FireRedASR2-AED | FireRedTeam | 开源 | 词级仲裁的声学裁判 | 否 |
-| fun-asr | 阿里 FunASR（ModelScope）| 开源 | CAM 分支的转写文本 | 否 |
+| fun-asr | `FunAudioLLM/Fun-ASR-Nano-2512`（ModelScope）；工具链 [FunASR](https://github.com/modelscope/FunASR)，MIT | 开源 | CAM 分支的转写文本 | 否 |
 
 四个模型全部为可公开获取的开源模型，且全部运行在本队自有算力上，
 **未通过 API 调用任何闭源大模型或方案**。
@@ -326,9 +326,13 @@ bash code/train.sh
 2. **`--full` 重跑的哈希可能与归档值不同。** MOSS 在 bf16 下的贪心解码在 GPU 上不是逐位确定的，
    重解码与原始 `test_raw` 的差异实测约 +0.0013 tcpWER。`code/test.sh --full` 因此不把哈希
    不一致当作失败，只在默认模式下硬校验。
-3. **Step 7 有两条等价路径。** `code/src/funasr_local.py` 用本地开源权重推理（默认，不依赖任何
-   外部服务）；`code/src/run.py` 走我们自有托管实例的异步接口。二者产物格式相同，
-   包内归档产物由后者生成。
+3. **Step 7 使用本地开源权重。** 链路调用 `code/src/funasr_local.py`，模型为
+   `FunAudioLLM/Fun-ASR-Nano-2512`（ModelScope 公开可下）与 `iic/speech_paraformer-large-...`，
+   工具链为 [FunASR](https://github.com/modelscope/FunASR)（MIT），推理全程在本队自有 GPU 上完成，
+   **不依赖任何外部服务**。赛程早期调试曾用过托管接口（`code/src/run.py`，已不在链路中），
+   包内 `stage_outputs/test_cam_multi` 含当时产出的中间产物；
+   一致性对比脚本与全量报告见 `code/src/funasr_api_vs_local.py` 与
+   `user_data/tmp_data/artifacts/funasr_api_vs_local.json`，详见根目录 `代码审核答复.md`。
 4. **FireRedASR2-AED 需要手工装。** 它不在 PyPI 上，装好后用 `FIRERED_SRC` / `FIRERED_CKPT`
    两个环境变量指过去（`code/src/fr_retext.py`、`code/src/word_arb.py` 都读这两个变量）。
 5. **`code/src/` 里除出货脚本外还有约 90 个探针脚本**，是探索过程中已否定方向的留存，

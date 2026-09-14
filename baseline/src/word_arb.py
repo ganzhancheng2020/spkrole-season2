@@ -60,6 +60,10 @@ logger = logging.getLogger(__name__)
 FIRERED_SRC = os.environ.get("FIRERED_SRC", "/tmp/FireRedASR2S")  # noqa: S108
 FIRERED_CKPT = os.environ.get("FIRERED_CKPT", "/tmp/FireRedASR2-AED")  # noqa: S108
 
+# FORCE_RERUN=1 时无视已有产物、逐 session 全部重算（完整复现用）。
+# 默认 0 = 断点续跑。全链路脚本会显式置 1。
+FORCE_RERUN = os.environ.get("FORCE_RERUN", "0") == "1"
+
 sys.path.insert(0, FIRERED_SRC)
 from fireredasr2s.fireredasr2.asr import (  # type: ignore[import-not-found]  # noqa: E402
     FireRedAsr2,
@@ -335,7 +339,7 @@ def main() -> int:
     total_sw = total_calls = n_fallback = 0
     for k, sid in enumerate(sids, 1):
         out_path = f"{out_dir}/{sid}.seglst.json"
-        if os.path.exists(out_path):
+        if os.path.exists(out_path) and not FORCE_RERUN:
             continue
         with open(f"{moss_dir}/{sid}.seglst.json", encoding="utf-8") as fh:
             moss_recs = json.load(fh)

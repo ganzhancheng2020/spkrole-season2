@@ -90,6 +90,30 @@ def normalize(words: str) -> tuple[str, int]:
     return " ".join(out), n
 
 
+def renumber_speakers(recs: list[dict]) -> tuple[list[dict], bool]:
+    """把一场内的说话人重编号为连续的 spk1..spkN（按首次出现顺序）。
+
+    上游的归属改写（spk_relabel / spk_reassign / spk_short_relabel）会把段在说话人
+    之间搬动，某个说话人被搬空时就留下编号空洞（实测出现过 [1,2,3,4,6]）。
+    cam_split_verify 的完整性自检要求连续编号，遇到空洞即中止。
+
+    重编号是安全的：tcpWER 做说话人全局最优置换，同一场内一致改名不影响分数。
+    对编号本已连续的输入是空操作（原样返回，changed=False）。
+    """
+    labels = {r["speaker"] for r in recs}
+    nums = sorted(int(x[3:]) for x in labels
+                  if x.startswith("spk") and x[3:].isdigit())
+    # 已经是连续的 spk1..spkN 就一个字都不动 —— 自检只要求编号连续，
+    # 不要求「首个出现的说话人必须是 spk1」，过度改名会平白改变产物哈希。
+    if len(nums) == len(labels) and nums == list(range(1, len(nums) + 1)):
+        return recs, False
+    order: dict[str, str] = {}
+    for r in sorted(recs, key=lambda x: float(x["start_time"])):
+        if r["speaker"] not in order:
+            order[r["speaker"]] = f"spk{len(order) + 1}"
+    return [{**r, "speaker": order[r["speaker"]]} for r in recs], True
+
+
 def main() -> int:
     if len(sys.argv) < 3:
         logger.error("用法见模块 docstring：%s", __doc__)
@@ -103,6 +127,7 @@ def main() -> int:
 
     total = 0
     touched = 0
+    renumbered = 0
     for p in preds:
         with open(p, encoding="utf-8") as fh:
             recs = json.load(fh)
@@ -115,11 +140,15 @@ def main() -> int:
         total += n_sess
         if n_sess:
             touched += 1
+        out, changed = renumber_speakers(out)
+        renumbered += changed
         with open(out_dir / p.name, "w", encoding="utf-8") as fh:
             json.dump(out, fh, ensure_ascii=False, indent=2)
 
     logger.info("共 %d 个 session，改写 %d 个字符，涉及 %d 个 session（%.1f%%）→ %s",
                 len(preds), total, touched, touched / len(preds) * 100, out_dir)
+    if renumbered:
+        logger.info("说话人编号规范化：%d 个 session 重编号为连续 spk1..spkN", renumbered)
     return 0
 
 

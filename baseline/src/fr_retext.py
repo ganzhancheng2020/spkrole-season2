@@ -17,6 +17,14 @@ from pathlib import Path
 FIRERED_SRC = os.environ.get("FIRERED_SRC", "/tmp/FireRedASR2S")  # noqa: S108
 FIRERED_CKPT = os.environ.get("FIRERED_CKPT", "/tmp/FireRedASR2-AED")  # noqa: S108
 
+# FORCE_RERUN=1 时无视已有产物、逐 session 全部重算（完整复现用）。
+# 默认 0 = 断点续跑，长任务中断后可接着跑。全链路脚本会显式置 1。
+FORCE_RERUN = os.environ.get("FORCE_RERUN", "0") == "1"
+
+# FIRERED_GPU=1 走 GPU（CPU 实测约 170 s/场，394 场要 18 h；GPU 快一个量级）。
+# 默认 0 = CPU，与历史产物同口径。命名沿用 word_arb.py 的 WORDARB_GPU 约定。
+USE_GPU = os.environ.get("FIRERED_GPU", "0") == "1"
+
 sys.path.insert(0, FIRERED_SRC)
 from fireredasr2s.fireredasr2.asr import (  # type: ignore[import-not-found]  # noqa: E402
     FireRedAsr2,
@@ -27,14 +35,14 @@ PUNCT = re.compile(r"""[，。！？、；：""''…,.!?;:"'()\[\]【】]""")
 TOKEN = re.compile(r"[A-Za-z]+|[0-9]+|[一-鿿]")
 pred_dir, wav_dir, out_dir = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
 out_dir.mkdir(parents=True, exist_ok=True)
-cfg = FireRedAsr2Config(use_gpu=False, return_timestamp=True, beam_size=3)
+cfg = FireRedAsr2Config(use_gpu=USE_GPU, return_timestamp=True, beam_size=3)
 m = FireRedAsr2.from_pretrained('aed', FIRERED_CKPT, cfg)
 preds = sorted(p for p in pred_dir.glob('*.seglst.json') if p.name.split('.')[0].isdigit())
 t0 = time.time()
 for i, p in enumerate(preds, 1):
     sid = p.name.split('.')[0]
     o = out_dir / p.name
-    if o.exists():
+    if o.exists() and not FORCE_RERUN:
         continue
     recs = json.loads(p.read_text(encoding='utf-8'))
     r = m.transcribe([sid], [str(wav_dir / f'{sid}.wav')])[0]

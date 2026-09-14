@@ -161,7 +161,9 @@ def main() -> int:
     total = total_skip = 0
     for k, sid in enumerate(sids, 1):
         out_path = f"{out_dir}/{sid}.seglst.json"
-        if os.path.exists(out_path):
+        # FORCE_RERUN=1 时无视已有产物、逐 session 全部重算（完整复现用）；
+        # 默认 0 = 断点续跑。全链路脚本会显式置 1。
+        if os.path.exists(out_path) and os.environ.get("FORCE_RERUN", "0") != "1":
             continue
         with open(f"{pred_dir}/{sid}.seglst.json", encoding="utf-8") as fh:
             recs = sorted(json.load(fh), key=lambda r: r["start_time"])

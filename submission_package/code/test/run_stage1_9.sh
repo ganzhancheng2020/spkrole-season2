@@ -36,15 +36,28 @@ MODEL="${MOSS_MODEL:-$UD/model_data/moss_sim_all106}"
 # 单独指向基座——包内 moss_base_processor/ 就是不含权重的那一份。
 PROCESSOR="${MOSS_PROCESSOR:-$UD/model_data/moss_base_processor}"
 
+# 各阶段脚本默认「产物已存在就跳过」（断点续跑）。全流程复现必须关掉这个行为，
+# 否则目标目录一旦非空就会静默复用旧结果。置 1 后逐 session 全部重算。
+# diarize.py / moss_sat.py 用的是各自的 --overwrite 开关（下面显式传入）。
+export FORCE_RERUN=1
+
+# FireRed 的两步（Step 3/8.5 重转写、Step 4/9 词级仲裁）默认在 CPU 上跑，
+# 实测约 170 s/场，394 场需十几小时。有 GPU 时开这两个开关可快一个量级。
+# 设 FIRERED_CPU=1 可强制回到 CPU（与历史归档产物同口径）。
+if [ "${FIRERED_CPU:-0}" != "1" ]; then
+    export FIRERED_GPU=1 WORDARB_GPU=1
+fi
+
 say() { printf '\n\033[1m%s\033[0m\n' "$*"; }
 say "输入 $WAV"
 say "输出 $STAGE"
+say "FORCE_RERUN=1 —— 不复用任何已有产物，逐 session 全部重算"
 
 say "Step 1  CAM++ 谱聚类分离 + 段级声纹（约 7 min）"
 PYTHONPATH=src "$PY" src/diarize.py --wav-dir "$WAV" \
     --out "$STAGE/diar_test_m3_7_0.70" \
     --min-spk 3 --max-spk 7 --merge-thr 0.70 \
-    --emb-cache "$STAGE/emb_test"
+    --emb-cache "$STAGE/emb_test" --overwrite
 
 say "Step 2  MOSS-SAT 解码（约 2 h，GPU）"
 [ -f "$PROCESSOR/preprocessor_config.json" ] || {
@@ -54,7 +67,7 @@ say "Step 2  MOSS-SAT 解码（约 2 h，GPU）"
     exit 1
 }
 PYTHONPATH=src "$PY" src/moss_sat.py --model "$MODEL" --processor "$PROCESSOR" \
-    --wav-dir "$WAV" --out "$STAGE/test_raw" --max-new-tokens 2048
+    --wav-dir "$WAV" --out "$STAGE/test_raw" --max-new-tokens 2048 --overwrite
 
 say "Step 3  FireRedASR2 按 MOSS 切分重转写（约 1 h，GPU）"
 PYTHONPATH=src "$PY" src/fr_retext.py "$STAGE/test_raw" "$WAV" "$STAGE/output_test_fr"

@@ -183,7 +183,23 @@ def relabel(recs: list[dict], embs: np.ndarray, owner: np.ndarray) -> tuple[list
             # `#1` 是从某个被污染档案里拆出来的人 -> 落成一个新说话人标签
             new[i] = ch_p.split("#")[0] + ("_s" if ch_p.endswith("#1") else "")
             n_changed += 1
-    return [str(v) for v in new], n_changed
+
+    # `_s` 只是「这是从污染档案里拆出来的新人」的内部记号，不是合法说话人标签。
+    # 下游 cam_split_verify 的完整性自检要求每场标签必须是连续的 spk1..spkN，
+    # 故在此把它落成该 session 内下一个空闲编号（与 cam_split_verify 的拆分改名同法）。
+    out = [str(v) for v in new]
+    if any(x.endswith("_s") for x in out):
+        used = {x for x in out if not x.endswith("_s")}
+        remap: dict[str, str] = {}
+        for x in out:
+            if x.endswith("_s") and x not in remap:
+                n = 1
+                while f"spk{n}" in used:
+                    n += 1
+                used.add(f"spk{n}")
+                remap[x] = f"spk{n}"
+        out = [remap.get(x, x) for x in out]
+    return out, n_changed
 
 
 def main() -> int:
@@ -205,7 +221,9 @@ def main() -> int:
     total = 0
     for k, sid in enumerate(sids, 1):
         out_path = f"{out_dir}/{sid}.seglst.json"
-        if os.path.exists(out_path):
+        # FORCE_RERUN=1 时无视已有产物、逐 session 全部重算（完整复现用）；
+        # 默认 0 = 断点续跑。全链路脚本会显式置 1。
+        if os.path.exists(out_path) and os.environ.get("FORCE_RERUN", "0") != "1":
             continue
         with open(f"{pred_dir}/{sid}.seglst.json", encoding="utf-8") as fh:
             recs = sorted(json.load(fh), key=lambda r: r["start_time"])

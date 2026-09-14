@@ -117,6 +117,13 @@ find "$SRC/baseline/output_test_fr" -maxdepth 1 -type f -name "*.json" \
      -exec cp {} "$S/output_test_fr/" \;
 printf '    %5s  %s\n' "$(ls -1 "$S/output_test_fr" | wc -l | tr -d ' ')" "output_test_fr"
 cp "$SRC/baseline/artifacts/test_spk_scores2.json" "$P/user_data/tmp_data/artifacts/"
+# Step 7 合规佐证：归档产物 vs 本地开源模型的全量一致性对比报告（见 代码审核答复.md）
+for r in funasr_api_vs_local.json funasr_api_vs_paraformer.json; do
+    [ -f "$SRC/baseline/artifacts/$r" ] && cp "$SRC/baseline/artifacts/$r" \
+        "$P/user_data/tmp_data/artifacts/" && echo "    + $r"
+done
+# 审核意见答复随包分发
+[ -f "$SRC/代码审核答复.md" ] && cp "$SRC/代码审核答复.md" "$P/" && echo "    + 代码审核答复.md"
 
 say "8/8  占位说明 + 可选的权重与仿真数据"
 cat > "$P/xfdata/README.txt" <<'EOF'
